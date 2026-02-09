@@ -1,0 +1,52 @@
+/* Using a clean, rounded font that's easy for kids to read */
+body {
+    font-family: 'Arial Rounded MT Bold', sans-serif;
+    background-color: #f0f9ff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+#game-container {
+    background: white;
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+}
+
+.stats {
+    display: flex;
+    justify-content: space-around;
+    font-size: 1.2rem;
+    color: #333;
+    border-bottom: 2px solid #eee;
+    margin-bottom: 20px;
+}
+
+#word-display {
+    font-size: 5rem;
+    letter-spacing: 15px;
+    color: #2c3e50;
+    margin: 40px 0;
+    text-transform: uppercase;
+}
+
+#blend-button {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.5rem;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+#blend-button:active {
+    transform: scale(0.95); /* Makes button "squish" when clicked */
+}
