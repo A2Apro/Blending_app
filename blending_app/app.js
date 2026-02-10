@@ -1,31 +1,13 @@
-// 1. Word Banks
-const tier1Words = ["AT", "AM", "IN", "UP", "IT", "ON", "AN", "ED"];
-const tier2Words = ["CAT", "DOG", "PIG", "SUN", "BOX", "MAP", "BAT", "NET", "TOP", "FIN"];
-const tier3Words = ["FROG", "STOP", "BLUE", "SWIM", "HAND", "JUMP", "DRUM", "GIFT", "FAST"];
-
-// 2. Initial State
+// 1. Initial State
 let gameState = {
     points: 0,
-    tier: 1,
-    currentWord: "AT",
-    lastWord: "",
+    tier: 1, 
+    currentWord: "...", // Placeholder
+    wordData: null, // Stores the AI sounds & sentence
     currentMode: "SLIDE" 
 };
 
-// Tracks which letter index (0, 1, 2, 3) was last spoken so we don't repeat or skip
-let lastIndexSpoken = -1; 
-
-// --- PHONICS DICTIONARY ( The "Fake" AI ) ---
-// This forces the browser to say sounds instead of letter names
-const phonetics = {
-    A: "ah", B: "buh", C: "kuh", D: "duh", E: "eh", F: "fff",
-    G: "guh", H: "huh", I: "ih", J: "juh", K: "kuh", L: "lll",
-    M: "mmm", N: "nnn", O: "aw", P: "puh", Q: "kwuh", R: "rrr",
-    S: "sss", T: "tuh", U: "uh", V: "vvv", W: "wuh", X: "ks",
-    Y: "yuh", Z: "zzz"
-};
-
-// 3. UI Hooks
+// 2. UI Hooks
 const scoreDisp = document.getElementById('score');
 const tierDisp = document.getElementById('tier-level');
 const progressBar = document.getElementById('progress-bar');
@@ -34,24 +16,21 @@ const letters = [document.getElementById('letter-1'), document.getElementById('l
 const slider = document.getElementById('blend-slider');
 const typeInput = document.getElementById('type-input');
 
-// --- AUDIO ENGINE ---
+// 3. Audio Engine (Uses AI Data)
 function speak(txt, type = "normal") {
-    // Determine what text to actually speak
-    let textToSay = txt;
-
-    // If we are doing phonics, look up the sound mapping
-    if (type === "slow" && phonetics[txt]) {
-        textToSay = phonetics[txt]; 
-    }
-
     window.speechSynthesis.cancel();
-    const msg = new SpeechSynthesisUtterance(textToSay);
+    const msg = new SpeechSynthesisUtterance(txt);
     
     if (type === "slow") {
-        msg.rate = 0.8; // Faster rate for short phonetic sounds so they are snappy
+        msg.rate = 0.8; 
         msg.pitch = 1.1;
     } else if (type === "blend") {
-        msg.text = txt.split("").join(" . "); 
+        // Use AI sounds if available, otherwise spell it out
+        if (gameState.wordData && gameState.wordData.sounds) {
+            msg.text = gameState.wordData.sounds.join(" . . ");
+        } else {
+            msg.text = txt.split("").join(" . . ");
+        }
         msg.rate = 0.5;
     } else {
         msg.rate = 0.8;
@@ -60,29 +39,42 @@ function speak(txt, type = "normal") {
     window.speechSynthesis.speak(msg);
 }
 
-// 4. Visual Stretch & Slider Audio Logic
+// 4. CALL THE WAITER (Fetch from Netlify Function)
+async function getNewWord() {
+    gameState.currentWord = "..."; 
+    update(); // Show loading state
+
+    try {
+        // This calls the file you created in Step 2
+        const response = await fetch('/.netlify/functions/fetch-word');
+        const data = await response.json();
+        
+        if (data.word) {
+            gameState.currentWord = data.word;
+            gameState.wordData = data; 
+            console.log("Gemini 3 Delivered:", data);
+        }
+    } catch (error) {
+        console.error("Waiter dropped the food:", error);
+        // Fallback just in case
+        gameState.currentWord = "CAT";
+        gameState.wordData = { sounds: ["kuh", "ah", "tuh"], sentence: "The cat nap." };
+    }
+    
+    update();
+    setChallenge();
+}
+
+// 5. Visual Logic (No changes needed, just re-pasted for completeness)
 function updateVisuals(sliderValue) {
+    if (gameState.currentWord === "...") return;
+
     const chars = gameState.currentWord.split("");
     const container = document.getElementById('blender-box');
     const containerWidth = container.offsetWidth;
     const cardWidth = 75; 
     const maxSpread = containerWidth - (chars.length * cardWidth) - 40;
     const currentSpread = maxSpread * (1 - (sliderValue / 100));
-
-    // Calculate which "Zone" the slider is in (0, 1, 2, or 3)
-    // We use a slightly smaller range (95) so we don't trigger the last letter right as we win
-    const totalZones = chars.length;
-    const zoneSize = 98 / totalZones; 
-    const currentZone = Math.floor(sliderValue / zoneSize);
-
-    // Audio Trigger: Only speak if we entered a NEW zone and we aren't finished
-    if (currentZone !== lastIndexSpoken && currentZone < totalZones && sliderValue < 98) {
-        const letterToSpeak = chars[currentZone];
-        if (letterToSpeak) {
-            speak(letterToSpeak, "slow");
-            lastIndexSpoken = currentZone;
-        }
-    }
 
     chars.forEach((char, i) => {
         const card = cards[i];
@@ -91,9 +83,15 @@ function updateVisuals(sliderValue) {
             const centering = (containerWidth - (chars.length * cardWidth + (chars.length - 1) * currentSpread)) / 2;
             card.style.left = (centering + offset) + "px";
             
-            // Highlight based on the calculated Zone
-            if (i === currentZone && sliderValue < 98) {
-                card.classList.add('active');
+            const segment = 100 / chars.length;
+            if (sliderValue >= i * segment && sliderValue < (i + 1) * segment) {
+                if (!card.classList.contains('active')) {
+                    card.classList.add('active');
+                    // Play the specific AI sound for this letter
+                    if (gameState.wordData && gameState.wordData.sounds[i]) {
+                        speak(gameState.wordData.sounds[i], "slow");
+                    }
+                }
             } else {
                 card.classList.remove('active');
             }
@@ -101,29 +99,26 @@ function updateVisuals(sliderValue) {
     });
 }
 
-// 5. Success Logic
+// 6. Win Logic
 function win() {
-    lastIndexSpoken = -1; // Reset audio tracker
     speak(gameState.currentWord, "blend");
-    setTimeout(() => speak(gameState.currentWord, "normal"), 1500);
+    
+    // Play the AI sentence after a delay!
+    setTimeout(() => {
+        if (gameState.wordData && gameState.wordData.sentence) {
+            speak(gameState.wordData.sentence, "normal");
+        }
+    }, 2000);
+
     gameState.points += 10;
     
-    if (gameState.points >= 50 && gameState.tier === 1) {
-        gameState.tier = 2;
-        alert("🎉 Amazing! You reached Tier 2!");
-    } else if (gameState.points >= 150 && gameState.tier === 2) {
-        gameState.tier = 3;
-        alert("🌟 Super Star! You reached Tier 3!");
-    }
-
+    // Wait 5 seconds, then ask the waiter for the next word
     setTimeout(() => {
-        nextWord();
-        setChallenge();
-        save();
-    }, 3500);
+        getNewWord(); 
+    }, 5000);
 }
 
-// 6. Interaction Listeners
+// 7. Listeners & Init
 slider.oninput = (e) => {
     updateVisuals(e.target.value);
     if (e.target.value == 100) win();
@@ -131,12 +126,12 @@ slider.oninput = (e) => {
 
 document.getElementById('hear-word').onclick = () => speak(gameState.currentWord, "normal");
 document.getElementById('hear-letter').onclick = () => {
-    // Find active letter or default to first
-    const activeCardIndex = cards.findIndex(c => c.classList.contains('active'));
-    if (activeCardIndex !== -1) {
-        speak(gameState.currentWord[activeCardIndex], "slow");
+    const activeIndex = cards.findIndex(c => c.classList.contains('active'));
+    if (activeIndex !== -1 && gameState.wordData) {
+        speak(gameState.wordData.sounds[activeIndex], "slow");
     } else {
-        speak(gameState.currentWord[0], "slow");
+        // Default to first sound if nothing is active
+        if(gameState.wordData) speak(gameState.wordData.sounds[0], "slow");
     }
 };
 
@@ -144,68 +139,11 @@ typeInput.oninput = (e) => {
     if (e.target.value.toUpperCase() === gameState.currentWord) win();
 };
 
-const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-const micBtn = document.getElementById('speak-word');
-if(micBtn) micBtn.onclick = () => rec.start();
-rec.onresult = (e) => {
-    if (e.results[0][0].transcript.toUpperCase().includes(gameState.currentWord)) win();
-};
-
-// 7. Core Functions
-function nextWord() {
-    let list;
-    if (gameState.tier === 1) list = tier1Words;
-    else if (gameState.tier === 2) list = tier2Words;
-    else list = tier3Words;
-
-    let nw;
-    do { nw = list[Math.floor(Math.random() * list.length)]; } while (nw === gameState.lastWord);
-    gameState.lastWord = gameState.currentWord;
-    gameState.currentWord = nw;
-    lastIndexSpoken = -1; // Reset audio
-}
-
-function setChallenge() {
-    const modes = ["SLIDE", "TYPE", "SPEAK"];
-    gameState.currentMode = modes[Math.floor(Math.random() * modes.length)];
-    document.querySelectorAll('.mode-area').forEach(m => m.style.display = 'none');
-    document.getElementById('slide-section').style.display = 'block'; 
-    slider.value = 0;
-    lastIndexSpoken = -1; 
-    if (gameState.currentMode === "TYPE") document.getElementById('type-section').style.display = 'block';
-    else if (gameState.currentMode === "SPEAK") document.getElementById('speak-section').style.display = 'block';
-    updateVisuals(0);
-}
-
-document.getElementById('reset-tier-button').onclick = () => {
-    if (confirm("Restart this tier?")) {
-        gameState.points = gameState.tier === 1 ? 0 : (gameState.tier === 2 ? 50 : 150);
-        nextWord();
-        setChallenge();
-        save();
-    }
-};
-
-function save() {
-    localStorage.setItem('blendingAppSave', JSON.stringify(gameState));
-    update();
-}
-
-function load() {
-    const saved = localStorage.getItem('blendingAppSave');
-    if (saved) gameState = JSON.parse(saved);
-    update();
-    setChallenge();
-}
-
 function update() {
     scoreDisp.innerText = gameState.points;
     tierDisp.innerText = gameState.tier;
     
-    let percentage = 0;
-    if (gameState.tier === 1) percentage = (gameState.points / 50) * 100;
-    else if (gameState.tier === 2) percentage = ((gameState.points - 50) / 100) * 100;
-    else percentage = 100;
+    let percentage = (gameState.points % 100); 
     progressBar.style.width = percentage + "%";
 
     const chars = gameState.currentWord.split("");
@@ -217,8 +155,20 @@ function update() {
             c.style.display = 'none';
         }
     });
-    // Don't reset visuals to 0 here to avoid jitter during slide
-    if(slider.value == 0) updateVisuals(0);
+    
+    if (slider.value == 0) updateVisuals(0);
 }
 
-load();
+function setChallenge() {
+    const modes = ["SLIDE", "TYPE", "SPEAK"];
+    gameState.currentMode = modes[Math.floor(Math.random() * modes.length)];
+    document.querySelectorAll('.mode-area').forEach(m => m.style.display = 'none');
+    document.getElementById('slide-section').style.display = 'block'; 
+    slider.value = 0;
+    if (gameState.currentMode === "TYPE") document.getElementById('type-section').style.display = 'block';
+    else if (gameState.currentMode === "SPEAK") document.getElementById('speak-section').style.display = 'block';
+    updateVisuals(0);
+}
+
+// Start Game by asking the waiter
+getNewWord();
