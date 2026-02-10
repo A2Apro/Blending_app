@@ -12,7 +12,7 @@ let gameState = {
     currentMode: "SLIDE" 
 };
 
-// 3. Elements - Matching your new HTML IDs
+// 3. UI Hooks
 const scoreDisp = document.getElementById('score');
 const tierDisp = document.getElementById('tier-level');
 const cards = [document.getElementById('card-1'), document.getElementById('card-2'), document.getElementById('card-3'), document.getElementById('card-4')];
@@ -20,30 +20,40 @@ const letters = [document.getElementById('letter-1'), document.getElementById('l
 const slider = document.getElementById('blend-slider');
 const typeInput = document.getElementById('type-input');
 
-// --- AUDIO ENGINE ---
-function speak(txt, slow = false) {
-    // Stop any current speech before starting new speech
-    window.speechSynthesis.cancel();
+// --- IMPROVED AUDIO ENGINE ---
+function speak(txt, type = "normal") {
+    window.speechSynthesis.cancel(); // Clear any "piled up" voices
     
     const msg = new SpeechSynthesisUtterance(txt);
-    msg.rate = slow ? 0.5 : 0.8; // Slower for "Hear Letter"
-    msg.pitch = 1.2; // Friendly kid-pitch
+    
+    if (type === "slow") {
+        // For sounding out individual letters
+        msg.rate = 0.35; // Very slow
+        msg.pitch = 1.3; // Higher, clearer pitch
+    } else if (type === "blend") {
+        // For the "Success" sound-out
+        // We add spaces between letters to force the AI to pause
+        msg.text = txt.split("").join(" . . . "); 
+        msg.rate = 0.4;
+    } else {
+        // For hearing the full word normally
+        msg.rate = 0.65; // Still slightly slow for clarity
+        msg.pitch = 1.1;
+    }
+    
     window.speechSynthesis.speak(msg);
 }
 
 // 4. Button Connections
 document.getElementById('hear-word').onclick = () => {
-    speak(gameState.currentWord);
+    speak(gameState.currentWord, "normal");
 };
 
 document.getElementById('hear-letter').onclick = () => {
-    // Find which letter card is currently highlighted (active)
     const activeCard = document.querySelector('.letter-card.active span');
     if (activeCard) {
-        speak(activeCard.innerText, true); // Speak only that letter
-    } else {
-        // Fallback: Speak the first letter if none are active
-        speak(gameState.currentWord[0], true);
+        // Speak the letter name/sound clearly and slowly
+        speak(activeCard.innerText, "slow"); 
     }
 };
 
@@ -70,7 +80,7 @@ function update() {
             c.style.display = 'none';
         }
     });
-    highlight(0); // Start with the first card highlighted
+    highlight(0); 
 }
 
 function highlight(idx) {
@@ -81,11 +91,8 @@ function highlight(idx) {
 }
 
 function setChallenge() {
-    // Randomly pick a mode
     const modes = ["SLIDE", "TYPE", "SPEAK"];
     gameState.currentMode = modes[Math.floor(Math.random() * modes.length)];
-    
-    // Hide all areas
     document.querySelectorAll('.mode-area').forEach(m => m.style.display = 'none');
     
     if (gameState.currentMode === "SLIDE") {
@@ -93,17 +100,21 @@ function setChallenge() {
         slider.value = 0;
     } else if (gameState.currentMode === "TYPE") {
         document.getElementById('type-section').style.display = 'block';
-        if(typeInput) {
-            typeInput.value = "";
-            typeInput.focus();
-        }
+        if(typeInput) { typeInput.value = ""; typeInput.focus(); }
     } else {
         document.getElementById('speak-section').style.display = 'block';
     }
 }
 
 function win() {
-    speak(gameState.currentWord); // Celebrate with the full word audio
+    // First, sound it out slowly: "A . . . T"
+    speak(gameState.currentWord, "blend");
+    
+    // Then, after a short pause, say the whole word: "AT!"
+    setTimeout(() => {
+        speak(gameState.currentWord, "normal");
+    }, 2000);
+
     gameState.points += 10;
     
     if (gameState.points >= 50 && gameState.tier === 1) {
@@ -118,16 +129,13 @@ function win() {
         nextWord();
         setChallenge();
         save();
-    }, 1200);
+    }, 4000); // Wait longer so they can hear the full audio sequence
 }
 
 function nextWord() {
     let list = gameState.tier === 1 ? tier1Words : (gameState.tier === 2 ? tier2Words : tier3Words);
     let nw;
-    do { 
-        nw = list[Math.floor(Math.random() * list.length)]; 
-    } while (nw === gameState.lastWord);
-    
+    do { nw = list[Math.floor(Math.random() * list.length)]; } while (nw === gameState.lastWord);
     gameState.lastWord = gameState.currentWord;
     gameState.currentWord = nw;
 }
@@ -136,11 +144,12 @@ function nextWord() {
 slider.oninput = (e) => {
     const v = e.target.value;
     const wordLength = gameState.currentWord.length;
-    
-    // Calculate which card should be active based on slider
     let activeIdx = Math.floor((v / 101) * wordLength);
     highlight(activeIdx);
     
+    // Optional: Sound out letter as the slider hits it
+    // if (v % 33 === 0) speak(gameState.currentWord[activeIdx], "slow");
+
     if (v == 100) win();
 };
 
@@ -150,12 +159,10 @@ if(typeInput) {
     };
 }
 
-// Voice Recognition
 const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 const micBtn = document.getElementById('speak-word');
-if(micBtn) {
-    micBtn.onclick = () => rec.start();
-}
+if(micBtn) { micBtn.onclick = () => rec.start(); }
+
 rec.onresult = (e) => {
     const speech = e.results[0][0].transcript.toUpperCase();
     if (speech.includes(gameState.currentWord)) win();
@@ -175,5 +182,4 @@ function save() {
     update();
 }
 
-// Initialize the game
 load();
