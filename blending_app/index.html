@@ -9,6 +9,10 @@
 <body>
 
     <div id="game-container">
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+
         <header>
             <h2 class="app-title">✨ Learn to Read! ✨</h2>
             <p id="challenge-text">Slide to sound out each letter</p>
@@ -21,7 +25,7 @@
 
         <div id="display-area">
             <div id="blender-box">
-                <div class="letter-card active" id="card-1"><span id="letter-1"></span></div>
+                <div class="letter-card" id="card-1"><span id="letter-1"></span></div>
                 <div class="letter-card" id="card-2"><span id="letter-2"></span></div>
                 <div class="letter-card" id="card-3"><span id="letter-3"></span></div>
                 <div class="letter-card" id="card-4"><span id="letter-4"></span></div>
@@ -30,9 +34,6 @@
 
         <div id="slide-section" class="mode-area">
             <input type="range" id="blend-slider" min="0" max="100" value="0">
-            <div class="slider-labels">
-                <span>1</span><span>2</span><span>3</span>
-            </div>
         </div>
 
         <div id="type-section" class="mode-area" style="display:none;">
@@ -48,7 +49,7 @@
             <button id="hear-letter" class="btn-blue">🔊 Hear Letter</button>
         </div>
 
-        <button id="reset-tier-button" class="btn-reset">Restart Tier</button>
+        <button id="reset-tier-button" class="btn-reset">Restart This Tier</button>
     </div>
 
     <script src="app.js"></script>
