@@ -27,7 +27,6 @@ body {
     box-shadow: 0 20px 40px rgba(0,0,0,0.08);
 }
 
-/* PROGRESS BAR STYLING */
 #progress-container {
     width: 100%;
     height: 12px;
@@ -39,7 +38,7 @@ body {
 
 #progress-bar {
     height: 100%;
-    width: 0%; /* JS will change this */
+    width: 0%;
     background: var(--progress-green);
     transition: width 0.5s ease-in-out;
 }
