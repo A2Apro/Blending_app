@@ -1,0 +1,10 @@
+[build]
+  # This tells Netlify your HTML/CSS/JS are inside this folder
+  publish = "blending_app"
+
+  # This tells Netlify your AI "Waiter" is in the standard folder
+  functions = "netlify/functions"
+
+[functions]
+  # This ensures your API key works for the backend
+  node_bundler = "esbuild"
