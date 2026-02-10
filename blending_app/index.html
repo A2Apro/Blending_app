@@ -3,28 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Letter Blender</title>
+    <title>Learn to Read!</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="game-container">
-        <div class="stats">
-            <p>Points: <span id="score">0</span></p>
-            <p>Tier: <span id="tier-level">1</span></p>
+        <header>
+            <h2 class="app-title">✨ Learn to Read! ✨</h2>
+            <p id="challenge-text">Slide to sound out each letter</p>
+        </header>
+
+        <div class="stats-bar">
+            <span>Points: <b id="score">0</b></span>
+            <span>Tier: <b id="tier-level">1</b></span>
         </div>
 
         <div id="display-area">
-            <h1 id="word-display">_ _</h1>
+            <div id="blender-box">
+                <div class="letter-card active" id="card-1"><span id="letter-1"></span></div>
+                <div class="letter-card" id="card-2"><span id="letter-2"></span></div>
+                <div class="letter-card" id="card-3"><span id="letter-3"></span></div>
+                <div class="letter-card" id="card-4"><span id="letter-4"></span></div>
+            </div>
         </div>
 
-        <button id="blend-button">I Got It! (Next Word)</button>
-        
-        <button id="try-again-button" style="background-color: #f44336; margin-top: 10px;">Try Again</button>
+        <div id="slide-section" class="mode-area">
+            <input type="range" id="blend-slider" min="0" max="100" value="0">
+            <div class="slider-labels">
+                <span>1</span><span>2</span><span>3</span>
+            </div>
+        </div>
 
-        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+        <div id="type-section" class="mode-area" style="display:none;">
+            <input type="text" id="type-input" placeholder="Type here..." autocomplete="off">
+        </div>
 
-        <button id="reset-tier-button" style="background-color: #757575; font-size: 0.8rem; padding: 10px;">Restart This Tier</button>
+        <div id="speak-section" class="mode-area" style="display:none;">
+            <button id="speak-word" class="btn-mic">🎤</button>
+        </div>
+
+        <div class="main-controls">
+            <button id="hear-word" class="btn-yellow">👂 Hear Word</button>
+            <button id="hear-letter" class="btn-blue">🔊 Hear Letter</button>
+        </div>
+
+        <button id="reset-tier-button" class="btn-reset">Restart Tier</button>
     </div>
 
     <script src="app.js"></script>

@@ -8,17 +8,39 @@ let gameState = {
     points: 0,
     tier: 1,
     currentWord: "AT",
-    lastWord: ""
+    lastWord: "",
+    currentMode: "SLIDE" 
 };
 
-// 3. Connect to the HTML "Hooks"
+// 3. Connect to UI Hooks
 const scoreDisplay = document.getElementById('score');
 const tierDisplay = document.getElementById('tier-level');
-const wordDisplay = document.getElementById('word-display');
-const blendButton = document.getElementById('blend-button');
-const tryAgainButton = document.getElementById('try-again-button');
+const cards = [document.getElementById('card-1'), document.getElementById('card-2'), document.getElementById('card-3'), document.getElementById('card-4')];
+const letterEls = [document.getElementById('letter-1'), document.getElementById('letter-2'), document.getElementById('letter-3'), document.getElementById('letter-4')];
+const slider = document.getElementById('blend-slider');
+const typeInput = document.getElementById('type-input');
 const resetTierButton = document.getElementById('reset-tier-button');
 
+// --- AUDIO ENGINE ---
+function speak(text, isSlow = false) {
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.rate = isSlow ? 0.5 : 0.7; // Slower rate for sounding out letters
+    msg.pitch = 1.2; // Slightly higher pitch to sound friendlier for kids
+    window.speechSynthesis.speak(msg);
+}
+
+// Sound out individual letters
+document.getElementById('hear-letter').onclick = () => {
+    const activeCard = document.querySelector('.letter-card.active span');
+    if (activeCard) {
+        speak(activeCard.innerText, true);
+    }
+};
+
+// Hear the full word
+document.getElementById('hear-word').onclick = () => speak(gameState.currentWord);
+
+// --- GAME LOGIC ---
 function loadGame() {
     const saved = localStorage.getItem('blendingAppSave');
     if (saved) {
@@ -30,27 +52,53 @@ function loadGame() {
 function updateScreen() {
     scoreDisplay.innerText = gameState.points;
     tierDisplay.innerText = gameState.tier;
-    wordDisplay.innerText = gameState.currentWord;
+    const chars = gameState.currentWord.split("");
+    
+    cards.forEach((c, i) => {
+        if (chars[i]) {
+            c.style.display = 'flex';
+            letterEls[i].innerText = chars[i];
+        } else {
+            c.style.display = 'none';
+        }
+    });
+    activateCard(0); // Start with the first letter highlighted
 }
 
-// 4. Logic to pick a new word (only called on success)
-function getNewWord() {
-    let wordList;
-    if (gameState.tier === 1) wordList = tier1Words;
-    else if (gameState.tier === 2) wordList = tier2Words;
-    else wordList = tier3Words;
-
-    let nextWord;
-    do {
-        const randomIndex = Math.floor(Math.random() * wordList.length);
-        nextWord = wordList[randomIndex];
-    } while (nextWord === gameState.lastWord); 
-
-    gameState.lastWord = gameState.currentWord;
-    gameState.currentWord = nextWord;
+function activateCard(index) {
+    cards.forEach((c, i) => {
+        if (i === index) {
+            c.classList.add('active');
+            // Optional: Uncomment below to auto-speak the letter when it highlights
+            // speak(letterEls[i].innerText, true); 
+        } else {
+            c.classList.remove('active');
+        }
+    });
 }
 
-function checkLevelUp() {
+function setNextChallenge() {
+    const modes = ["SLIDE", "TYPE", "SPEAK"];
+    gameState.currentMode = modes[Math.floor(Math.random() * modes.length)];
+    document.querySelectorAll('.mode-area').forEach(el => el.style.display = 'none');
+    
+    if (gameState.currentMode === "SLIDE") {
+        document.getElementById('slide-section').style.display = 'block';
+        slider.value = 0;
+    } else if (gameState.currentMode === "TYPE") {
+        document.getElementById('type-section').style.display = 'block';
+        typeInput.value = "";
+        typeInput.focus();
+    } else {
+        document.getElementById('speak-section').style.display = 'block';
+    }
+}
+
+function winWord() {
+    speak(gameState.currentWord); // Victory audio: The full word
+    gameState.points += 10;
+    
+    // Level Up Logic
     if (gameState.points >= 50 && gameState.tier === 1) {
         gameState.tier = 2;
         alert("🎉 AMAZING! You unlocked Tier 2: 3-Letter Words!");
@@ -58,38 +106,6 @@ function checkLevelUp() {
         gameState.tier = 3;
         alert("🌟 WOW! You are a Pro! Tier 3 Unlocked: 4-Letter Words!");
     }
-}
 
-// SUCCESS: Child got it right
-blendButton.addEventListener('click', () => {
-    gameState.points += 10;
-    checkLevelUp();
-    getNewWord(); // Change word
-    saveAndRefresh();
-});
-
-// REPEAT: Child got it wrong
-tryAgainButton.addEventListener('click', () => {
-    alert("Let's try that one more time! You can do it.");
-    // Notice: We do NOT call getNewWord() here, so the word stays the same.
-    saveAndRefresh();
-});
-
-// REFRESH: Reset the current tier points
-resetTierButton.addEventListener('click', () => {
-    if (confirm("Do you want to start this tier over?")) {
-        if (gameState.tier === 1) gameState.points = 0;
-        if (gameState.tier === 2) gameState.points = 50;
-        if (gameState.tier === 3) gameState.points = 150;
+    setTimeout(() => {
         getNewWord();
-        saveAndRefresh();
-    }
-});
-
-function saveAndRefresh() {
-    localStorage.setItem('blendingAppSave', JSON.stringify(gameState));
-    updateScreen();
-}
-
-loadGame();
-updateScreen();
